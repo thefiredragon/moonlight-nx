@@ -309,7 +309,7 @@ enet_protocol_handle_connect (ENetHost * host, ENetProtocolHeader * header, ENet
         }
         else 
         if (currentPeer -> state != ENET_PEER_STATE_CONNECTING &&
-            enet_address_equal (& currentPeer -> address, & host -> receivedPeerAddress))
+            enet_address_equal (& currentPeer -> address, & host -> receivedAddress))
         {
             if (currentPeer -> connectID == command -> connect.connectID)
               return NULL;
@@ -329,8 +329,7 @@ enet_protocol_handle_connect (ENetHost * host, ENetProtocolHeader * header, ENet
     peer -> channelCount = channelCount;
     peer -> state = ENET_PEER_STATE_ACKNOWLEDGING_CONNECT;
     peer -> connectID = command -> connect.connectID;
-    peer -> address = host -> receivedPeerAddress;
-    peer -> localAddress = host -> receivedLocalAddress;
+    peer -> address = host -> receivedAddress;
     peer -> outgoingPeerID = ENET_NET_TO_HOST_16 (command -> connect.outgoingPeerID);
     peer -> incomingBandwidth = ENET_NET_TO_HOST_32 (command -> connect.incomingBandwidth);
     peer -> outgoingBandwidth = ENET_NET_TO_HOST_32 (command -> connect.outgoingBandwidth);
@@ -860,19 +859,19 @@ enet_protocol_handle_acknowledge (ENetHost * host, ENetEvent * event, ENetPeer *
     {
        enet_peer_throttle (peer, roundTripTime);
 
-       peer -> roundTripTimeVariance -= (peer -> roundTripTimeVariance + 3) / 4;
+       peer -> roundTripTimeVariance -= peer -> roundTripTimeVariance / 4;
 
        if (roundTripTime >= peer -> roundTripTime)
        {
           enet_uint32 diff = roundTripTime - peer -> roundTripTime;
-          peer -> roundTripTimeVariance += (diff + 3) / 4;
-          peer -> roundTripTime += (diff + 7) / 8;
+          peer -> roundTripTimeVariance += diff / 4;
+          peer -> roundTripTime += diff / 8;
        }
        else
        {
           enet_uint32 diff = peer -> roundTripTime - roundTripTime;
-          peer -> roundTripTimeVariance += (diff + 3) / 4;
-          peer -> roundTripTime -= (diff + 7) / 8;
+          peer -> roundTripTimeVariance += diff / 4;
+          peer -> roundTripTime -= diff / 8;
        }
     }
     else
@@ -1073,8 +1072,7 @@ enet_protocol_handle_incoming_commands (ENetHost * host, ENetEvent * event)
        
     if (peer != NULL)
     {
-       memcpy(& peer -> address, & host -> receivedPeerAddress, sizeof (host -> receivedPeerAddress));
-       memcpy(& peer -> localAddress, & host -> receivedLocalAddress, sizeof (host -> receivedLocalAddress));
+       memcpy(& peer -> address, & host -> receivedAddress, sizeof (host -> receivedAddress));
        peer -> incomingDataTotal += host -> receivedDataLength;
     }
     
@@ -1225,8 +1223,7 @@ enet_protocol_receive_incoming_commands (ENetHost * host, ENetEvent * event)
        buffer.dataLength = sizeof (host -> packetData [0]);
 
        receivedLength = enet_socket_receive (host -> socket,
-                                             & host -> receivedPeerAddress,
-                                             & host -> receivedLocalAddress,
+                                             & host -> receivedAddress,
                                              & buffer,
                                              1);
 
@@ -1367,8 +1364,6 @@ enet_protocol_check_timeouts (ENetHost * host, ENetPeer * peer, ENetEvent * even
        ++ peer -> packetsLost;
 
        outgoingCommand -> roundTripTimeout *= 2;
-       if (outgoingCommand -> roundTripTimeout > outgoingCommand -> roundTripTimeoutLimit)
-         outgoingCommand -> roundTripTimeout = outgoingCommand -> roundTripTimeoutLimit;
 
        enet_list_insert (insertPosition, enet_list_remove (& outgoingCommand -> outgoingCommandList));
 
@@ -1469,7 +1464,7 @@ enet_protocol_check_outgoing_commands (ENetHost * host, ENetPeer * peer)
  
           if (outgoingCommand -> roundTripTimeout == 0)
           {
-             outgoingCommand -> roundTripTimeout = peer -> roundTripTime + 4 * ENET_MAX (1, peer -> roundTripTimeVariance);
+             outgoingCommand -> roundTripTimeout = peer -> roundTripTime + 4 * peer -> roundTripTimeVariance;
              outgoingCommand -> roundTripTimeoutLimit = peer -> timeoutLimit * outgoingCommand -> roundTripTimeout;
           }
 
@@ -1693,7 +1688,7 @@ enet_protocol_send_outgoing_commands (ENetHost * host, ENetEvent * event, int ch
             enet_socket_set_option (host -> socket, ENET_SOCKOPT_QOS, 0);
         }
 
-        sentLength = enet_socket_send (host -> socket, & currentPeer -> address, & currentPeer -> localAddress, host -> buffers, host -> bufferCount);
+        sentLength = enet_socket_send (host -> socket, & currentPeer -> address, host -> buffers, host -> bufferCount);
 
         enet_protocol_remove_sent_unreliable_commands (currentPeer);
 

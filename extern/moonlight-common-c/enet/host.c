@@ -88,8 +88,7 @@ enet_host_create (int addressFamily, const ENetAddress * address, size_t peerCou
     host -> commandCount = 0;
     host -> bufferCount = 0;
     host -> checksum = NULL;
-    memset(& host -> receivedPeerAddress, 0, sizeof (host -> receivedPeerAddress));
-    memset(& host -> receivedLocalAddress, 0, sizeof (host -> receivedLocalAddress));
+    memset(& host -> receivedAddress, 0, sizeof (host -> receivedAddress));
     host -> receivedData = NULL;
     host -> receivedDataLength = 0;
      
