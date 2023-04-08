@@ -1,0 +1,40 @@
+name: Build Moonlight-Switch
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    
+    container:
+      image: docker://xitrix/moonlight:latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v1
+      with:
+        submodules: recursive
+
+    - name: Remove useless fonts
+      run: rm -rf ./resources/font
+
+    - name: Run build
+      run: make -j8
+
+    - name: Upload Moonlight-Switch.nro
+      uses: actions/upload-artifact@master
+      with:
+        name: Moonlight-Switch
+        path: Moonlight-Switch.nro
+
+    - name: Upload Moonlight-Switch.elf
+      uses: actions/upload-artifact@master
+      with:
+        name: Debug.elf
+        path: Moonlight-Switch.elf
